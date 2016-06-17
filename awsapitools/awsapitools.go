@@ -1,4 +1,4 @@
-package awsroutingtable
+package awsapitools
 
 import (
 	"fmt"
@@ -57,4 +57,22 @@ func ReplaceRoute(session *ec2.EC2, routeTableID, instanceID string) {
 		panic(err)
 	}
 	fmt.Println(resp)
+}
+
+// InstanceState returns a sting with the instance state.
+func InstanceState(session *ec2.EC2, instanceID string) string {
+	params := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{
+			aws.String(instanceID),
+		},
+	}
+
+	resp, err := session.DescribeInstances(params)
+
+	if err != nil {
+		panic(err)
+	}
+
+	instanceState := *resp.Reservations[0].Instances[0].State.Name
+	return instanceState
 }
