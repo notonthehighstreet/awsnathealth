@@ -1,14 +1,18 @@
 package hostping
 
 import (
+	"aws_nat/errhandling"
 	"net"
 	"time"
 
 	"github.com/tatsushid/go-fastping"
 )
 
-// Ping Returns a channel with true,false elements depending on thehost availibility.
+// Ping returns a channel with true,false elements depending on the host availibility.
 func Ping(hostname string, resp chan bool) {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "Ping")
 
 	type response struct {
 		addr *net.IPAddr

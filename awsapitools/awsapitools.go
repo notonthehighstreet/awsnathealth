@@ -1,6 +1,7 @@
 package awsapitools
 
 import (
+	"aws_nat/errhandling"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,8 +17,11 @@ func AwsSessIon(region string) *ec2.EC2 {
 
 // DescribeRouteTableIDNatInstanceID Returns a map with RouteTableId InstanceId.
 func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[string]string {
-	var rtIDInstID = make(map[string]string)
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "DescribeRouteTableIDNatInstanceID")
 
+	var rtIDInstID = make(map[string]string)
 	params := &ec2.DescribeRouteTablesInput{
 		DryRun: aws.Bool(false),
 		Filters: []*ec2.Filter{
@@ -44,6 +48,10 @@ func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[strin
 
 // ReplaceRoute the routing table route entry.
 func ReplaceRoute(session *ec2.EC2, routeTableID, instanceID string) {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "ReplaceRoute")
+
 	params := &ec2.ReplaceRouteInput{
 		DestinationCidrBlock: aws.String("0.0.0.0/0"),  // Required
 		RouteTableId:         aws.String(routeTableID), // Required
@@ -61,6 +69,10 @@ func ReplaceRoute(session *ec2.EC2, routeTableID, instanceID string) {
 
 // InstanceState returns a sting with the instance state.
 func InstanceState(session *ec2.EC2, instanceID string) string {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "InstanceState")
+
 	params := &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{
 			aws.String(instanceID),

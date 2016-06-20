@@ -2,55 +2,84 @@ package main
 
 import (
 	"aws_nat/awsapitools"
+	"aws_nat/errhandling"
 	"aws_nat/hostping"
-	"aws_nat/httpops"
-	"fmt"
+	"aws_nat/httptools"
+	"aws_nat/logging"
+	"io/ioutil"
+	"os"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
 
-func main() {
+type natConfig struct {
+	MyInstanceID    string
+	OtherInstanceID string
+	OtherInstanceIP string
+	HTTPPort        string
+	VpcID           string
+	AwsRegion       string
+	RTOCInterval    time.Duration
+	MyRoutingTables []string
+	Logfile         string
+}
 
-	type natConfig struct {
-		MyInstanceID    string
-		OtherInstanceID string
-		OtherInstanceIP string
-		HTTPPort        string
-		VpcID           string
-		AwsRegion       string
-	}
+var (
+	config       natConfig
+	pingschannel = make(chan bool)
+)
 
-	var (
-		config       natConfig
-		pingschannel = make(chan bool)
-	)
-
+func init() {
 	// Parse config
 	if _, err := toml.DecodeFile("natHealthConfig.conf", &config); err != nil {
-		panic(err)
+		logging.Error.Println(err)
 	}
+
+	//Initalize logging
+	logging.Log(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr, config.Logfile)
+
 	// Run up Ping and HttpdHandler
-	go httpops.HttpdHandler(config.HTTPPort)
+	go httptools.HttpdHandler(config.HTTPPort)
 	go hostping.Ping(config.OtherInstanceIP, pingschannel)
 
-	for ping := range pingschannel {
-		if ping {
-			fmt.Print("True\n")
+	//Process panic and error messages
+	go func() {
+		for err := range errhandling.ErrorChannel {
+			logging.Info.Print(err)
 		}
-		if !ping {
-			fmt.Print("False\n")
-			respcode := httpops.RespCode("http://" + config.OtherInstanceIP + ":" + config.HTTPPort)
-			fmt.Print(respcode)
-			if respcode != 200 {
+	}()
+}
 
-				fmt.Print("RespCode Not 200\n")
+func main() {
+
+	// Check that my routes belong to me.
+	go func() {
+		for {
+			session := awsapitools.AwsSessIon(config.AwsRegion)
+			RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+			for _, routeTable := range config.MyRoutingTables {
+				if RTsInIDs[routeTable] != config.MyInstanceID {
+					awsapitools.ReplaceRoute(session, routeTable, config.MyInstanceID)
+				}
+			}
+			time.Sleep(config.RTOCInterval * time.Second)
+			logging.Info.Print("Route Ownership check is sleeping 5 second\n")
+		}
+	}()
+
+	for ping := range pingschannel {
+		if !ping {
+			logging.Error.Println("Nat instanceID:", config.OtherInstanceID, "instanceIP:", config.OtherInstanceIP, "is not pinging")
+			respcode := httptools.RespCode("http://" + config.OtherInstanceIP + ":" + config.HTTPPort)
+			if respcode != 200 {
+				logging.Error.Println("Nat instanceID:", config.OtherInstanceID, "instanceIP:", config.OtherInstanceIP, "is returning http response code:", respcode)
 				session := awsapitools.AwsSessIon(config.AwsRegion)
 				instanceState := awsapitools.InstanceState(session, config.OtherInstanceID)
 
 				if instanceState == "running" {
-					rt := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
-					for routeTableID, instanceID := range rt {
-						fmt.Println(routeTableID, instanceID)
+					RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+					for routeTableID, instanceID := range RTsInIDs {
 						if instanceID != config.MyInstanceID {
 							awsapitools.ReplaceRoute(session, routeTableID, config.MyInstanceID)
 						}
@@ -59,66 +88,9 @@ func main() {
 			}
 		}
 	}
+	// defer func() {
+	// 	if e := recover(); e != nil {
+	// 		errhandling.ErrorChannel <- errhandling.Error{fmt.Sprint(e)}
+	// 	}
+	// }()
 }
-
-// func main() {
-//
-// 	type natConfig struct {
-// 		MyInstanceID    string
-// 		OtherInstanceID string
-// 		OtherInstanceIP string
-// 		HTTPPort        string
-// 		VpcID           string
-// 		AwsRegion       string
-// 	}
-//
-// 	var config natConfig
-// 	if _, err := toml.DecodeFile("natConfig.conf", &config); err != nil {
-// 		panic(err)
-// 	}
-// 	fmt.Printf("MyInstanceID: %s\n", config.MyInstanceID)
-// 	fmt.Printf("OtherInstanceID: %s\n", config.OtherInstanceID)
-// 	fmt.Printf("OtherInstanceIP: %s\n", config.OtherInstanceIP)
-// 	fmt.Printf("HTTPPort: %s\n", config.HTTPPort)
-// 	fmt.Printf("VpcID: %s\n", config.VpcID)
-// 	fmt.Printf("AwsRegion: %s\n", config.AwsRegion)
-// }
-
-// func main() {
-//
-// 	session := awsapitools.AwsSessIon("eu-west-1")
-//
-// 	state := awsapitools.InstanceState(session, "i-08ece580")
-// 	fmt.Print(state)
-//
-// }
-
-// session := awsapitools.AwsSessIon("eu-west-1")
-// rt := awsapitools.DescribeRouteTableIDNatInstanceID(session, "vpc-b6dd64d3")
-//
-// for routeTableID, instanceID := range rt {
-// 	fmt.Println(routeTableID, instanceID)
-// 	if instanceID != "i-09755883" {
-// 		awsapitools.ReplaceRoute(session, routeTableID, "i-09755883")
-// 	}
-// }
-
-// session := awsapitools.AwsSessIon("eu-west-1")
-// rt := awsapitools.DescribeRouteTableIDNatInstanceID(session, "vpc-b6dd64d3")
-//
-// for routeTableID, instanceID := range rt {
-// 	fmt.Println(routeTableID, instanceID)
-// 	if instanceID != "i-08ece580" {
-// 		awsapitools.ReplaceRoute(session, routeTableID, "i-08ece580")
-// 	}
-// }
-
-// go func() {
-// 	httpops.HttpdHandler("8001")
-// }()
-// for {
-// 	code := httpops.RespCode("http://localhost:8001")
-// 	// code := httpops.RespCode("http://google.com")
-// 	fmt.Print(code)
-// 	time.Sleep(2 * time.Second)
-// }
