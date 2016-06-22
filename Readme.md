@@ -47,6 +47,30 @@ git config --global url."git@github.com:".insteadOf "https://github.com/"
 
 After running go install if your $GOPATH is set correctly you should find the binary in your $GOPATH/bin folder.
 
+# Note
+
+Please make sure that the user who runs the awsnathealt binary can create ICMP sockets on your linux distro.
+
+You can check the following kernel parameter:
+
+```
+# cat /proc/sys/net/ipv4/ping_group_range
+0	2147483647
+```
+You can set it in sysctl.conf permanatly so any user can create a ICMP socket with the below value.
+
+```
+net.ipv4.ping_group_range = 0 2147483647
+```
+
+Or you can set it to specific group id which the user who runs the awsnathealt needs to be member of. So if gid id 500 then the settings would be:
+
+```
+net.ipv4.ping_group_range = 500 500
+```
+
+
+ 
 
 #Versioning
 
