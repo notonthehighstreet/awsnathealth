@@ -2,7 +2,7 @@
 This app is meant to monitor the aws nat box health.In the case of the nat box failure it'll will take over the routing table of the other nat box. The required number of nat boxes for the HA setup is 2.
 
 # AWS auth/premission
-The nat instance should have a ami role attached to it which allows read-only access for ec2 instance information retrieval and rw access for the vpc routing table management.
+The nat instance should have an ami role attached to it which allows read-only access for ec2 instance information retrieval and rw access for the vpc routing table management.
 
 # Usage
 ### Cli help
@@ -11,6 +11,18 @@ Usage of ./aws_nat:
 
   -c, --config-file=/etc/awsnathealth.conf    Config file. Default is /etc/awsnathealth.conf.
   -v, --version                               awsnathealth Version.
+```
+
+# Config file example
+```
+# Nat Health Config
+otherInstancePubIP = "52.45.65.23"
+httpport = "8001"
+vpcID = "vpc-b6dd64d3"
+awsRegion = "eu-west-1"
+RouteTableCheckInterval = 10
+myRoutingTables = [ "rtb-7d5dde19", "rtb-1f73f07b"]
+logfile = "awsnathealth.log"
 ```
 
 # Application work flow
