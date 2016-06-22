@@ -14,15 +14,13 @@ import (
 )
 
 type natConfig struct {
-	MyInstanceID    string
-	OtherInstanceID string
-	OtherInstanceIP string
-	HTTPPort        string
-	VpcID           string
-	AwsRegion       string
-	RTOCInterval    time.Duration
-	MyRoutingTables []string
-	Logfile         string
+	OtherInstancePubIP string        `toml:"otherInstancePubIP"`
+	HTTPPort           string        `toml:"httpport"`
+	VpcID              string        `toml:"vpcID"`
+	AwsRegion          string        `toml:"awsRegion"`
+	RTCInterval        time.Duration `toml:"RouteTableCheckInterval"`
+	MyRoutingTables    []string      `toml:"myRoutingTables"`
+	Logfile            string        `toml:"logfile"`
 }
 
 var (
@@ -31,19 +29,19 @@ var (
 )
 
 func init() {
-	// Parse config
+	//Parse config file.
 	if _, err := toml.DecodeFile("natHealthConfig.conf", &config); err != nil {
 		logging.Error.Println(err)
 	}
 
-	//Initalize logging
+	//Initalize logging.
 	logging.Log(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr, config.Logfile)
 
-	// Run up Ping and HttpdHandler
+	//Run up Ping and HttpdHandler.
 	go httptools.HttpdHandler(config.HTTPPort)
-	go hostping.Ping(config.OtherInstanceIP, pingschannel)
+	go func() { hostping.Ping(config.OtherInstancePubIP, pingschannel) }()
 
-	//Process panic and error messages
+	//Process panic and error messages.
 	go func() {
 		for err := range errhandling.ErrorChannel {
 			logging.Info.Print(err)
@@ -52,45 +50,47 @@ func init() {
 }
 
 func main() {
-
-	// Check that my routes belong to me.
+	//Get myInstanceID
+	myInstanceID := awsapitools.MetadataInstanceID()
+	//Check that my routes belong to me.
 	go func() {
 		for {
 			session := awsapitools.AwsSessIon(config.AwsRegion)
 			RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
 			for _, routeTable := range config.MyRoutingTables {
-				if RTsInIDs[routeTable] != config.MyInstanceID {
-					awsapitools.ReplaceRoute(session, routeTable, config.MyInstanceID)
+				if RTsInIDs[routeTable] != myInstanceID {
+					logging.Info.Print("Takeing back my route table:", routeTable)
+					awsapitools.ReplaceRoute(session, routeTable, myInstanceID)
 				}
 			}
-			time.Sleep(config.RTOCInterval * time.Second)
-			logging.Info.Print("Route Ownership check is sleeping 5 second\n")
+			time.Sleep(config.RTCInterval * time.Second)
 		}
 	}()
 
+	//Check the other nat insance
 	for ping := range pingschannel {
 		if !ping {
-			logging.Error.Println("Nat instanceID:", config.OtherInstanceID, "instanceIP:", config.OtherInstanceIP, "is not pinging")
-			respcode := httptools.RespCode("http://" + config.OtherInstanceIP + ":" + config.HTTPPort)
+			//Create session to aws api.
+			session := awsapitools.AwsSessIon(config.AwsRegion)
+			otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
+			logging.Error.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is not pinging")
+			//Check is the other nat instances http handler returns 200.
+			respcode := httptools.RespCode("http://" + config.OtherInstancePubIP + ":" + config.HTTPPort)
 			if respcode != 200 {
-				logging.Error.Println("Nat instanceID:", config.OtherInstanceID, "instanceIP:", config.OtherInstanceIP, "is returning http response code:", respcode)
-				session := awsapitools.AwsSessIon(config.AwsRegion)
-				instanceState := awsapitools.InstanceState(session, config.OtherInstanceID)
-
-				if instanceState == "running" {
+				logging.Error.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is returning http response code:", respcode)
+				//Return the other nat instance state.
+				instanceState := awsapitools.InstanceStatebyInstancePubIP(session, config.OtherInstancePubIP)
+				//If the other instance state is not pending.
+				if instanceState != "pending" {
 					RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+					//Check who owns the routes if not me take them.
 					for routeTableID, instanceID := range RTsInIDs {
-						if instanceID != config.MyInstanceID {
-							awsapitools.ReplaceRoute(session, routeTableID, config.MyInstanceID)
+						if instanceID != myInstanceID {
+							awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
 						}
 					}
 				}
 			}
 		}
 	}
-	// defer func() {
-	// 	if e := recover(); e != nil {
-	// 		errhandling.ErrorChannel <- errhandling.Error{fmt.Sprint(e)}
-	// 	}
-	// }()
 }

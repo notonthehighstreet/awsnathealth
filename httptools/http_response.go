@@ -28,6 +28,7 @@ func RespCode(url string) int {
 	}
 
 	resp, err := client.Get(url)
+	resp.Body.Close()
 	if err != nil {
 		panic(err)
 	} else {

@@ -58,6 +58,7 @@ func Ping(hostname string, resp chan bool) {
 				} else {
 					resp <- true
 				}
+				results[ra.String()] = nil
 			}
 		}
 	}

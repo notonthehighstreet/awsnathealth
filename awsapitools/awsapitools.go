@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -34,7 +35,6 @@ func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[strin
 	}
 
 	resp, err := session.DescribeRouteTables(params)
-
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +46,7 @@ func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[strin
 	return rtIDInstID
 }
 
-// ReplaceRoute the routing table route entry.
+// ReplaceRoute replaces the routing table route instance entry.
 func ReplaceRoute(session *ec2.EC2, routeTableID, instanceID string) {
 	//Catch and log panic events
 	var err error
@@ -60,15 +60,16 @@ func ReplaceRoute(session *ec2.EC2, routeTableID, instanceID string) {
 	}
 
 	resp, err := session.ReplaceRoute(params)
-
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(resp)
+	if resp == nil {
+		fmt.Println(resp)
+	}
 }
 
-// InstanceState returns a sting with the instance state.
-func InstanceState(session *ec2.EC2, instanceID string) string {
+// InstanceStatebyInstanceID returns a sting with the instance state.
+func InstanceStatebyInstanceID(session *ec2.EC2, instanceID string) string {
 	//Catch and log panic events
 	var err error
 	defer errhandling.CatchPanic(&err, "InstanceState")
@@ -80,11 +81,73 @@ func InstanceState(session *ec2.EC2, instanceID string) string {
 	}
 
 	resp, err := session.DescribeInstances(params)
-
 	if err != nil {
 		panic(err)
 	}
 
 	instanceState := *resp.Reservations[0].Instances[0].State.Name
 	return instanceState
+}
+
+// InstanceStatebyInstancePubIP returns a sting with the instance state.
+func InstanceStatebyInstancePubIP(session *ec2.EC2, instancePublicIP string) string {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "InstanceState")
+
+	params := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name: aws.String("ip-address"),
+				Values: []*string{
+					aws.String(instancePublicIP),
+				},
+			},
+		},
+	}
+
+	resp, err := session.DescribeInstances(params)
+	if err != nil {
+		panic(err)
+	}
+	instanceState := *resp.Reservations[0].Instances[0].State.Name
+	return instanceState
+}
+
+//InstanceIDbyPublicIP returns a sting with the instanceID.
+func InstanceIDbyPublicIP(session *ec2.EC2, instancePublicIP string) string {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "InstanceIDbyPublicIP")
+
+	params := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name: aws.String("ip-address"),
+				Values: []*string{
+					aws.String(instancePublicIP),
+				},
+			},
+		},
+	}
+	resp, err := session.DescribeInstances(params)
+	if err != nil {
+		panic(err)
+	}
+	instanceID := *resp.Reservations[0].Instances[0].InstanceId
+	return instanceID
+}
+
+// MetadataInstanceID returns instanceID.
+func MetadataInstanceID() string {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "InstanceID")
+
+	session := ec2metadata.New(session.New(), &aws.Config{Endpoint: aws.String("http://169.254.169.254/latest")})
+	resp, err := session.GetInstanceIdentityDocument()
+	if err != nil {
+		panic(err)
+	}
+	return resp.InstanceID
 }
