@@ -6,11 +6,13 @@ import (
 	"aws_nat/hostping"
 	"aws_nat/httptools"
 	"aws_nat/logging"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	flag "github.com/docker/docker/pkg/mflag"
 )
 
 type natConfig struct {
@@ -24,13 +26,33 @@ type natConfig struct {
 }
 
 var (
-	config       natConfig
-	pingschannel = make(chan bool)
+	config              natConfig
+	pingschannel        = make(chan bool)
+	version, configfile string
+	ver                 bool
 )
 
 func init() {
+	//Menu
+	flag.StringVar(&configfile, []string{"c", "-config-file"}, "/etc/awsnathealth.conf", "Config file. Default is /etc/awsnathealth.conf.")
+	flag.BoolVar(&ver, []string{"v", "-version"}, false, "awsnathealth Version.")
+	flag.Parse()
+
+	// Display app version
+	if ver == true {
+		fmt.Printf("Awsnathealth Version: %s\n", version)
+		os.Exit(1)
+	}
+
+	//Check config file exist
+	if _, err := os.Stat(configfile); err != nil {
+		fmt.Printf("Config file: %s does not exist!\n", configfile)
+		logging.Error.Printf("Config file: %s does not exist!\n", configfile)
+		os.Exit(1)
+	}
+
 	//Parse config file.
-	if _, err := toml.DecodeFile("natHealthConfig.conf", &config); err != nil {
+	if _, err := toml.DecodeFile(configfile, &config); err != nil {
 		logging.Error.Println(err)
 	}
 
@@ -39,7 +61,7 @@ func init() {
 
 	//Run up Ping and HttpdHandler.
 	go httptools.HttpdHandler(config.HTTPPort)
-	go func() { hostping.Ping(config.OtherInstancePubIP, pingschannel) }()
+	go hostping.Ping(config.OtherInstancePubIP, pingschannel)
 
 	//Process panic and error messages.
 	go func() {
