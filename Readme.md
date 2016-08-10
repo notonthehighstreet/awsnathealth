@@ -69,8 +69,18 @@ Or you can set it to specific group id which the user who runs the awsnathealt n
 net.ipv4.ping_group_range = 500 500
 ```
 
+#Create an RPM
+Install fpm and rpm
 
- 
+```
+gem install --no-ri --no-rdoc fpm
+```
+CD into the rpm folder and run
+
+```
+cd rpm/
+fpm -s dir -t rpm -n "awsnathealth" -v 1.0  --rpm-os linux --after-install after-install.sh etc usr
+```
 
 #Versioning
 
