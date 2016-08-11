@@ -23,6 +23,7 @@ awsRegion = "eu-west-1"
 RouteTableCheckInterval = 10
 myRoutingTables = [ "rtb-7d5dde19", "rtb-1f73f07b"]
 logfile = "awsnathealth.log"
+debug = false
 ```
 
 # Application work flow

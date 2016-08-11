@@ -23,6 +23,7 @@ type natConfig struct {
 	RTCInterval        time.Duration `toml:"RouteTableCheckInterval"`
 	MyRoutingTables    []string      `toml:"myRoutingTables"`
 	Logfile            string        `toml:"logfile"`
+	Debug              bool          `toml:"debug"`
 }
 
 var (
@@ -64,11 +65,19 @@ func init() {
 	go hostping.Ping(config.OtherInstancePubIP, pingschannel)
 
 	//Process panic and error messages.
-	go func() {
-		for err := range errhandling.ErrorChannel {
-			logging.Info.Print(err)
-		}
-	}()
+	if config.Debug {
+		go func() {
+			for err := range errhandling.ErrorChannel {
+				logging.Error.Print(err)
+			}
+		}()
+	} else {
+		go func() {
+			for err := range errhandling.ErrorChannel {
+				_ = err
+			}
+		}()
+	}
 }
 
 func main() {
@@ -95,11 +104,11 @@ func main() {
 			//Create session to aws api.
 			session := awsapitools.AwsSessIon(config.AwsRegion)
 			otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
-			logging.Error.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is not pinging")
+			logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is not pinging")
 			//Check is the other nat instances http handler returns 200.
 			respcode := httptools.RespCode("http://" + config.OtherInstancePubIP + ":" + config.HTTPPort)
 			if respcode != 200 {
-				logging.Error.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is returning http response code:", respcode)
+				logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is returning http response code:", respcode)
 				//Return the other nat instance state.
 				instanceState := awsapitools.InstanceStatebyInstancePubIP(session, config.OtherInstancePubIP)
 				//If the other instance state is not pending.
