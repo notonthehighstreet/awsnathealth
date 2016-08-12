@@ -1,8 +1,9 @@
 package awsapitools
 
 import (
-	"aws_nat/errhandling"
 	"fmt"
+
+	"github.com/notonthehighstreet/awsnathealth/errhandling"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"

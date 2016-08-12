@@ -1,7 +1,7 @@
 package httptools
 
 import (
-	"aws_nat/errhandling"
+	"github.com/notonthehighstreet/awsnathealth/errhandling"
 	"net"
 	"net/http"
 	"time"

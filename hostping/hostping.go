@@ -1,7 +1,7 @@
 package hostping
 
 import (
-	"aws_nat/errhandling"
+	"github.com/notonthehighstreet/awsnathealth/errhandling"
 	"net"
 	"time"
 

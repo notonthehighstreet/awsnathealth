@@ -1,15 +1,16 @@
 package main
 
 import (
-	"aws_nat/awsapitools"
-	"aws_nat/errhandling"
-	"aws_nat/hostping"
-	"aws_nat/httptools"
-	"aws_nat/logging"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
+
+	"github.com/notonthehighstreet/awsnathealth/awsapitools"
+	"github.com/notonthehighstreet/awsnathealth/errhandling"
+	"github.com/notonthehighstreet/awsnathealth/hostping"
+	"github.com/notonthehighstreet/awsnathealth/httptools"
+	"github.com/notonthehighstreet/awsnathealth/logging"
 
 	"github.com/BurntSushi/toml"
 	flag "github.com/docker/docker/pkg/mflag"

@@ -1,5 +1,5 @@
 # About
-This app is meant to monitor the aws nat box health.In the case of the nat box failure it'll will take over the routing table of the other nat box. The required number of nat boxes for the HA setup is 2.
+This app is meant to monitor the aws nat box health.In the case of the nat box failure it will take over the routing table of the other nat box. The required number of nat boxes for the HA setup is 2.
 
 # AWS auth/premission
 The nat instance should have an ami role attached to it which allows read-only access for ec2 instance information retrieval and rw access for the vpc routing table management.
@@ -7,7 +7,7 @@ The nat instance should have an ami role attached to it which allows read-only a
 # Usage
 ### Cli help
 ```
-Usage of ./aws_nat:
+Usage of ./github.com/notonthehighstreet/awsnathealth:
 
   -c, --config-file=/etc/awsnathealth.conf    Config file. Default is /etc/awsnathealth.conf.
   -v, --version                               awsnathealth Version.
@@ -80,7 +80,7 @@ CD into the rpm folder and run
 
 ```
 cd rpm/
-fpm -s dir -t rpm -n "awsnathealth" -v 1.0  --rpm-os linux --after-install after-install.sh --before-remove before-remove.sh --before-install before-install.sh etc usr
+fpm -s dir -t rpm -n "awsnathealth" -v 'app version'  --rpm-os linux --after-install scripts/after-install.sh --before-remove scripts/before-remove.sh --before-install scripts/before-install.sh etc usr
 ```
 
 #Versioning
@@ -88,6 +88,13 @@ fpm -s dir -t rpm -n "awsnathealth" -v 1.0  --rpm-os linux --after-install after
 Versioning is baked into the build process.
 
 If you pass in the **main.version** variable during the go install process the tool will return the set value if you run **awsnathealth -v**
+
+```
+cd awsnathealth/
+GOOS=linux GOARCH=amd64 go build --ldflags "-X main.version='app version' -extldflags -static -s"
+```
+
+or
 
 ```
 go install --ldflags "-X main.version='app version' -extldflags -static -s" -v github.com/notonthehighstreet/awsnathealth
