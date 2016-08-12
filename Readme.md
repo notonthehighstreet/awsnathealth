@@ -80,7 +80,7 @@ CD into the rpm folder and run
 
 ```
 cd rpm/
-fpm -s dir -t rpm -n "awsnathealth" -v 1.0  --rpm-os linux --after-install after-install.sh etc usr
+fpm -s dir -t rpm -n "awsnathealth" -v 1.0  --rpm-os linux --after-install after-install.sh --before-remove before-remove.sh --before-install before-install.sh etc usr
 ```
 
 #Versioning
