@@ -17,7 +17,7 @@ func AwsSessIon(region string) *ec2.EC2 {
 	return session
 }
 
-// DescribeRouteTableIDNatInstanceID Returns a map with RouteTableId InstanceId.
+// DescribeRouteTableIDNatInstanceID Returns a map with RouteTableId  with the associated Nat InstanceId.
 func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[string]string {
 	//Catch and log panic events
 	var err error
@@ -34,14 +34,15 @@ func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[strin
 			},
 		},
 	}
-
 	resp, err := session.DescribeRouteTables(params)
 	if err != nil {
 		panic(err)
 	}
 	for _, r := range resp.RouteTables {
-		if r.Routes[1].InstanceId != nil {
-			rtIDInstID[*r.Associations[0].RouteTableId] = *r.Routes[1].InstanceId
+		for _, rt := range r.Routes {
+			if rt.InstanceId != nil {
+				rtIDInstID[*r.Associations[0].RouteTableId] = *rt.InstanceId
+			}
 		}
 	}
 	return rtIDInstID
