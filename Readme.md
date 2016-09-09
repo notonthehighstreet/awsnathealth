@@ -20,8 +20,9 @@ otherInstancePubIP = "52.45.65.23"
 httpport = "8001"
 vpcID = "vpc-b6dd64d3"
 awsRegion = "eu-west-1"
-RouteTableCheckInterval = 10
+routeTableCheckInterval = 10
 myRoutingTables = [ "rtb-7d5dde19", "rtb-1f73f07b"]
+otherInstanceRoutingTables = [ "rtb-7d5ddedas", "rtb-1f73f0ere"]
 logfile = "awsnathealth.log"
 debug = false
 ```

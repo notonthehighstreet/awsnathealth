@@ -11,20 +11,22 @@ import (
 	"github.com/notonthehighstreet/awsnathealth/hostping"
 	"github.com/notonthehighstreet/awsnathealth/httptools"
 	"github.com/notonthehighstreet/awsnathealth/logging"
+	"github.com/notonthehighstreet/awsnathealth/othertools"
 
 	"github.com/BurntSushi/toml"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
 type natConfig struct {
-	OtherInstancePubIP string        `toml:"otherInstancePubIP"`
-	HTTPPort           string        `toml:"httpport"`
-	VpcID              string        `toml:"vpcID"`
-	AwsRegion          string        `toml:"awsRegion"`
-	RTCInterval        time.Duration `toml:"RouteTableCheckInterval"`
-	MyRoutingTables    []string      `toml:"myRoutingTables"`
-	Logfile            string        `toml:"logfile"`
-	Debug              bool          `toml:"debug"`
+	OtherInstancePubIP         string        `toml:"otherInstancePubIP"`
+	HTTPPort                   string        `toml:"httpport"`
+	VpcID                      string        `toml:"vpcID"`
+	AwsRegion                  string        `toml:"awsRegion"`
+	RTCInterval                time.Duration `toml:"routeTableCheckInterval"`
+	MyRoutingTables            []string      `toml:"myRoutingTables"`
+	OtherInstanceRoutingTables []string      `toml:"otherInstanceRoutingTables"`
+	Logfile                    string        `toml:"logfile"`
+	Debug                      bool          `toml:"debug"`
 }
 
 var (
@@ -91,7 +93,7 @@ func main() {
 			RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
 			for _, routeTable := range config.MyRoutingTables {
 				if RTsInIDs[routeTable] != myInstanceID {
-					logging.Info.Print("Takeing back my route table:", routeTable)
+					logging.Info.Print("Taking back my route table:", routeTable)
 					awsapitools.ReplaceRoute(session, routeTable, myInstanceID)
 				}
 			}
@@ -118,7 +120,13 @@ func main() {
 					//Check who owns the routes if not me take them.
 					for routeTableID, instanceID := range RTsInIDs {
 						if instanceID != myInstanceID {
-							awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
+							//Safety chech to make sure we only modify the routing tables belonging to the other nat instance
+							if othertools.StringInSlice(routeTableID, config.OtherInstanceRoutingTables) {
+								logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
+								awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
+							} else {
+								logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
+							}
 						}
 					}
 				}
