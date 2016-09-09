@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/notonthehighstreet/awsnathealth/awsapitools"
 	"github.com/notonthehighstreet/awsnathealth/errhandling"
 	"github.com/notonthehighstreet/awsnathealth/hostping"
@@ -18,10 +19,13 @@ import (
 )
 
 type natConfig struct {
+	MyInstancePubIP            string        `toml:"myInstancePubIP"`
 	OtherInstancePubIP         string        `toml:"otherInstancePubIP"`
 	HTTPPort                   string        `toml:"httpport"`
 	VpcID                      string        `toml:"vpcID"`
 	AwsRegion                  string        `toml:"awsRegion"`
+	SCInterval                 time.Duration `toml:"sessionCreateInterval"`
+	PICInterval                time.Duration `toml:"publicIPCheckInterval"`
 	RTCInterval                time.Duration `toml:"routeTableCheckInterval"`
 	MyRoutingTables            []string      `toml:"myRoutingTables"`
 	OtherInstanceRoutingTables []string      `toml:"otherInstanceRoutingTables"`
@@ -34,6 +38,7 @@ var (
 	pingschannel        = make(chan bool)
 	version, configfile string
 	ver                 bool
+	session             *ec2.EC2
 )
 
 func init() {
@@ -67,6 +72,14 @@ func init() {
 	go httptools.HttpdHandler(config.HTTPPort)
 	go hostping.Ping(config.OtherInstancePubIP, pingschannel)
 
+	// Get aws session.
+	go func() {
+		for {
+			session = awsapitools.AwsSessIon(config.AwsRegion)
+			time.Sleep(config.SCInterval * time.Second)
+		}
+	}()
+
 	//Process panic and error messages.
 	if config.Debug {
 		go func() {
@@ -86,10 +99,9 @@ func init() {
 func main() {
 	//Get myInstanceID
 	myInstanceID := awsapitools.MetadataInstanceID()
-	//Check that my routes belong to me.
+	//Check that my routes belongs to me.
 	go func() {
 		for {
-			session := awsapitools.AwsSessIon(config.AwsRegion)
 			RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
 			for _, routeTable := range config.MyRoutingTables {
 				if RTsInIDs[routeTable] != myInstanceID {
@@ -101,11 +113,20 @@ func main() {
 		}
 	}()
 
+	//Check that my ElasticIP belongs to me.
+	go func() {
+		for {
+			if awsapitools.InstancePublicIP(session, myInstanceID) != config.MyInstancePubIP {
+				awsapitools.AssociateElacticIP(session, config.MyInstancePubIP, myInstanceID)
+				logging.Info.Print("Taking back my Elatic IP:", config.MyInstancePubIP)
+			}
+			time.Sleep(config.PICInterval * time.Second)
+		}
+	}()
+
 	//Check the other nat insance
 	for ping := range pingschannel {
 		if !ping {
-			//Create session to aws api.
-			session := awsapitools.AwsSessIon(config.AwsRegion)
 			otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
 			logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is not pinging")
 			//Check is the other nat instances http handler returns 200.

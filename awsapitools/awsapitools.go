@@ -74,7 +74,7 @@ func ReplaceRoute(session *ec2.EC2, routeTableID, instanceID string) {
 func InstanceStatebyInstanceID(session *ec2.EC2, instanceID string) string {
 	//Catch and log panic events
 	var err error
-	defer errhandling.CatchPanic(&err, "InstanceState")
+	defer errhandling.CatchPanic(&err, "InstanceStatebyInstanceID")
 
 	params := &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{
@@ -95,7 +95,7 @@ func InstanceStatebyInstanceID(session *ec2.EC2, instanceID string) string {
 func InstanceStatebyInstancePubIP(session *ec2.EC2, instancePublicIP string) string {
 	//Catch and log panic events
 	var err error
-	defer errhandling.CatchPanic(&err, "InstanceState")
+	defer errhandling.CatchPanic(&err, "InstanceStatebyInstancePubIP")
 
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
@@ -144,7 +144,7 @@ func InstanceIDbyPublicIP(session *ec2.EC2, instancePublicIP string) string {
 func MetadataInstanceID() string {
 	//Catch and log panic events
 	var err error
-	defer errhandling.CatchPanic(&err, "InstanceID")
+	defer errhandling.CatchPanic(&err, "MetadataInstanceID")
 
 	session := ec2metadata.New(session.New(), &aws.Config{Endpoint: aws.String("http://169.254.169.254/latest")})
 	resp, err := session.GetInstanceIdentityDocument()
@@ -152,4 +152,46 @@ func MetadataInstanceID() string {
 		panic(err)
 	}
 	return resp.InstanceID
+}
+
+// AssociateElacticIP function associate Elatic IP to an instance.
+func AssociateElacticIP(session *ec2.EC2, elaticIP, instanceID string) {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "AssociateElacticIP")
+
+	params := &ec2.AssociateAddressInput{
+		AllowReassociation: aws.Bool(true),
+		DryRun:             aws.Bool(false),
+		InstanceId:         aws.String(instanceID),
+		PublicIp:           aws.String(elaticIP),
+	}
+	resp, err := session.AssociateAddress(params)
+	if err != nil {
+		panic(err)
+	}
+	if resp == nil {
+		fmt.Println(resp)
+	}
+}
+
+// InstancePublicIP returns a sting with the instance Elactic IP.
+func InstancePublicIP(session *ec2.EC2, instanceID string) string {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "InstancePublicIP")
+
+	params := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{
+			aws.String(instanceID),
+		},
+	}
+
+	resp, err := session.DescribeInstances(params)
+	if err != nil {
+		panic(err)
+	}
+
+	publicIP := *resp.Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicIp
+	return publicIP
 }
