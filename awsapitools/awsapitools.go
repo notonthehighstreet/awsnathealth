@@ -42,6 +42,8 @@ func DescribeRouteTableIDNatInstanceID(session *ec2.EC2, vpcid string) map[strin
 		for _, rt := range r.Routes {
 			if rt.InstanceId != nil {
 				rtIDInstID[*r.Associations[0].RouteTableId] = *rt.InstanceId
+			} else {
+				rtIDInstID[*r.Associations[0].RouteTableId] = "not_assigned"
 			}
 		}
 	}

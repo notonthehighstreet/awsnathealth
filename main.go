@@ -138,16 +138,14 @@ func main() {
 				//If the other instance state is not pending.
 				if instanceState != "pending" {
 					RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+					bothrtable := append(config.MyRoutingTables, config.OtherInstanceRoutingTables...)
 					//Check who owns the routes if not me take them.
 					for routeTableID, instanceID := range RTsInIDs {
-						if instanceID != myInstanceID {
-							//Safety chech to make sure we only modify the routing tables belonging to the other nat instance
-							if othertools.StringInSlice(routeTableID, config.OtherInstanceRoutingTables) {
-								logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
-								awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
-							} else {
-								logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
-							}
+						if othertools.StringInSlice(routeTableID, bothrtable) && instanceID != myInstanceID {
+							logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
+							awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
+						} else {
+							logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
 						}
 					}
 				}
