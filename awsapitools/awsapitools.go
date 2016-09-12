@@ -180,7 +180,10 @@ func AssociateElacticIP(session *ec2.EC2, elaticIP, instanceID string) {
 // InstancePublicIP returns a sting with the instance Elactic IP.
 func InstancePublicIP(session *ec2.EC2, instanceID string) string {
 	//Catch and log panic events
-	var err error
+	var (
+		err      error
+		publicIP string
+	)
 	defer errhandling.CatchPanic(&err, "InstancePublicIP")
 
 	params := &ec2.DescribeInstancesInput{
@@ -194,6 +197,11 @@ func InstancePublicIP(session *ec2.EC2, instanceID string) string {
 		panic(err)
 	}
 
-	publicIP := *resp.Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicIp
+	if *resp.Reservations[0].Instances[0].PublicDnsName != "" {
+		publicIP = *resp.Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicIp
+	} else {
+		publicIP = "has_no_PublicIP"
+	}
 	return publicIP
+
 }
