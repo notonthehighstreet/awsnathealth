@@ -2,11 +2,12 @@ package srvconfig
 
 import (
 	"github.com/notonthehighstreet/awsnathealth/errhandling"
+	"github.com/notonthehighstreet/awsnathealth/logging"
 	"github.com/notonthehighstreet/awsnathealth/othertools"
 )
 
 // Config is somethings
-type Config struct{ template, configFile string }
+// type Config struct{ template, configFile string }
 
 // ManageServiceConfig manages
 func ManageServiceConfig() {
@@ -29,9 +30,13 @@ func ManageServiceConfig() {
 		tmpConfigMd5 := othertools.HashFileMd5(configTemplateFile.configFile + ".tmp")
 
 		if currentConfigMd5 != tmpConfigMd5 {
-			othertools.CmdExec("cp", []string{configTemplateFile.configFile + ".tmp", configTemplateFile.configFile})
-			othertools.CmdExec("rm -rf", []string{configTemplateFile.configFile + ".tmp"})
-			othertools.CmdExec("service restart", []string{service})
+			othertools.CmdExec("mv", []string{"-f", configTemplateFile.configFile + ".tmp", configTemplateFile.configFile})
+			othertools.CmdExec("service", []string{service, "restart"})
+			if service == "racoon" {
+				othertools.CmdExec("chmod", []string{"+x", configTemplateFile.configFile})
+				othertools.CmdExec(configTemplateFile.configFile, nil)
+			}
+			logging.Info.Println("Service: ", service, " has restarted")
 		}
 	}
 }
