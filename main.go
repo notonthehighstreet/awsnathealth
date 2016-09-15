@@ -114,6 +114,10 @@ func init() {
 func main() {
 	//Get myInstanceID
 	myInstanceID := awsapitools.MetadataInstanceID()
+
+	//Disable natbox network interface sorce destination check.
+	go awsapitools.DisableNatSorceDestCheck(session, myInstanceID)
+
 	//Check that my routes belongs to me.
 	go func() {
 		for {

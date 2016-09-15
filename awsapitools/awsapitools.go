@@ -203,5 +203,26 @@ func InstancePublicIP(session *ec2.EC2, instanceID string) string {
 		publicIP = "has_no_PublicIP"
 	}
 	return publicIP
+}
 
+// DisableNatSorceDestCheck disable
+func DisableNatSorceDestCheck(session *ec2.EC2, instanceID string) {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "DisableNatSorceDestCheck")
+
+	params := &ec2.ModifyInstanceAttributeInput{
+		InstanceId: aws.String(instanceID),
+		DryRun:     aws.Bool(false),
+		SourceDestCheck: &ec2.AttributeBooleanValue{
+			Value: aws.Bool(false),
+		},
+	}
+	resp, err := session.ModifyInstanceAttribute(params)
+	if err != nil {
+		panic(err)
+	}
+	if resp == nil {
+		fmt.Println(resp)
+	}
 }
