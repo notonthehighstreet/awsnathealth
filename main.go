@@ -34,6 +34,7 @@ type natConfig struct {
 	OtherInstanceRoutingTables []string      `toml:"otherInstanceRoutingTables"`
 	Logfile                    string        `toml:"logfile"`
 	ManageRacoonBgpd           bool          `toml:"manageRacoonBgpd"`
+	StandAlone                 bool          `toml:"standAlone"`
 	Debug                      bool          `toml:"debug"`
 }
 
@@ -74,8 +75,10 @@ func init() {
 	logging.Log(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr, config.Logfile)
 
 	//Run up Ping and HttpdHandler.
-	go httptools.HttpdHandler(config.HTTPPort)
-	go hostping.Ping(config.OtherInstancePubIP, pingschannel)
+	if !config.StandAlone {
+		go httptools.HttpdHandler(config.HTTPPort)
+		go hostping.Ping(config.OtherInstancePubIP, pingschannel)
+	}
 
 	// Get aws session.
 	go func() {
@@ -118,7 +121,7 @@ func main() {
 	//Disable natbox network interface sorce destination check.
 	go awsapitools.DisableNatSorceDestCheck(session, myInstanceID)
 
-	//Check that my routes belongs to me.
+	//Check that my routes belong to me.
 	go func() {
 		for {
 			RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
@@ -143,40 +146,42 @@ func main() {
 		}
 	}()
 
-	//Check the other nat insance
-	notPingCount := 0
-	for ping := range pingschannel {
-		if !ping {
-			notPingCount++
-			logging.Info.Println("Not Ping count: ", notPingCount)
-			if notPingCount >= config.PingTimeout {
-				otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
-				logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is not pinging")
-				//Check is the other nat instances http handler returns 200.
-				respcode := httptools.RespCode("http://" + config.OtherInstancePubIP + ":" + config.HTTPPort)
-				if respcode != 200 {
-					logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is returning http response code:", respcode)
-					//Return the other nat instance state.
-					instanceState := awsapitools.InstanceStatebyInstancePubIP(session, config.OtherInstancePubIP)
-					//If the other instance state is not pending.
-					if instanceState != "pending" {
-						RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
-						bothrtable := append(config.MyRoutingTables, config.OtherInstanceRoutingTables...)
-						//Check who owns the routes if not me take them.
-						for routeTableID, instanceID := range RTsInIDs {
-							if othertools.StringInSlice(routeTableID, bothrtable) && instanceID != myInstanceID {
-								logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
-								awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
-							} else {
-								logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
+	if !config.StandAlone {
+		//Check the other nat insance
+		notPingCount := 0
+		for ping := range pingschannel {
+			if !ping {
+				notPingCount++
+				logging.Info.Println("Not Ping count: ", notPingCount)
+				if notPingCount >= config.PingTimeout {
+					otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
+					logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is not pinging")
+					//Check is the other nat instances http handler returns 200.
+					respcode := httptools.RespCode("http://" + config.OtherInstancePubIP + ":" + config.HTTPPort)
+					if respcode != 200 {
+						logging.Warning.Println("Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "is returning http response code:", respcode)
+						//Return the other nat instance state.
+						instanceState := awsapitools.InstanceStatebyInstancePubIP(session, config.OtherInstancePubIP)
+						//If the other instance state is not pending.
+						if instanceState != "pending" {
+							RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+							bothrtable := append(config.MyRoutingTables, config.OtherInstanceRoutingTables...)
+							//Check who owns the routes if not me take them.
+							for routeTableID, instanceID := range RTsInIDs {
+								if othertools.StringInSlice(routeTableID, bothrtable) && instanceID != myInstanceID {
+									logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
+									awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
+								} else {
+									logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
+								}
 							}
 						}
 					}
 				}
 			}
-		}
-		if ping {
-			notPingCount = 0
+			if ping {
+				notPingCount = 0
+			}
 		}
 	}
 }
