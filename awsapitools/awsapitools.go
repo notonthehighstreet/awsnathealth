@@ -234,7 +234,7 @@ func ModifySecurityGroup(session *ec2.EC2, protocol, cidrIP, sgGroupID string, f
 	defer errhandling.CatchPanic(&err, "ModifySecurityGroup")
 
 	// Ingore rules for localhost
-	if cidrIP == "172.0.0.1/32" {
+	if cidrIP == "127.0.0.1/32" {
 		return
 	}
 
