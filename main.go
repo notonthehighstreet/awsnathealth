@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -32,7 +33,9 @@ type natConfig struct {
 	PingTimeout                int           `toml:"pingTimeout"`
 	MyRoutingTables            []string      `toml:"myRoutingTables"`
 	OtherInstanceRoutingTables []string      `toml:"otherInstanceRoutingTables"`
+	PeerPubIPS                 []string      `toml:"peerPubIPS"`
 	Logfile                    string        `toml:"logfile"`
+	ManagedSecurityGroups      bool          `toml:"managedSecurityGroups"`
 	ManageRacoonBgpd           bool          `toml:"manageRacoonBgpd"`
 	StandAlone                 bool          `toml:"standAlone"`
 	Debug                      bool          `toml:"debug"`
@@ -94,6 +97,27 @@ func init() {
 			for {
 				srvconfig.ManageServiceConfig()
 				time.Sleep(config.SrvInterval * time.Second)
+			}
+		}()
+	}
+
+	// Managed Default Securty Group
+	if config.ManagedSecurityGroups {
+		go func() {
+			// Get Default Security Group ID
+			DefaultSGID := awsapitools.GetInstanceJSONUserData("http://169.254.169.254/latest/user-data", "DefaultSG")
+
+			httpPort, _ := strconv.ParseInt(config.HTTPPort, 10, 0)
+			// Add nat healt check FW rules
+			awsapitools.ModifySecurityGroup(session, "icmp", config.OtherInstancePubIP+"/32", DefaultSGID, 8, 0)
+			awsapitools.ModifySecurityGroup(session, "tcp", config.OtherInstancePubIP+"/32", DefaultSGID, httpPort, httpPort)
+
+			// Add greIpsec FW rules
+			for _, peer := range config.PeerPubIPS {
+				awsapitools.ModifySecurityGroup(session, "50", peer+"/32", DefaultSGID, -1, -1)
+				awsapitools.ModifySecurityGroup(session, "51", peer+"/32", DefaultSGID, -1, -1)
+				awsapitools.ModifySecurityGroup(session, "udp", peer+"/32", DefaultSGID, 4500, 4500)
+				awsapitools.ModifySecurityGroup(session, "udp", peer+"/32", DefaultSGID, 500, 500)
 			}
 		}()
 	}

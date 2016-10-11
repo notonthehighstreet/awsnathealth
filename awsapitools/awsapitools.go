@@ -226,3 +226,36 @@ func DisableNatSorceDestCheck(session *ec2.EC2, instanceID string) {
 		fmt.Println(resp)
 	}
 }
+
+// ModifySecurityGroup modifies existing security group
+func ModifySecurityGroup(session *ec2.EC2, protocol, cidrIP, sgGroupID string, fromPort, toPort int64) {
+	//Catch and log panic events
+	var err error
+	defer errhandling.CatchPanic(&err, "ModifySecurityGroup")
+
+	params := &ec2.AuthorizeSecurityGroupIngressInput{
+		DryRun:  aws.Bool(false),
+		GroupId: aws.String(sgGroupID),
+		IpPermissions: []*ec2.IpPermission{
+			{ // Required
+				FromPort:   aws.Int64(fromPort),
+				ToPort:     aws.Int64(toPort),
+				IpProtocol: aws.String(protocol),
+				IpRanges: []*ec2.IpRange{
+					{
+						CidrIp: aws.String(cidrIP),
+					},
+				},
+			},
+		},
+	}
+	resp, err := session.AuthorizeSecurityGroupIngress(params)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if resp == nil {
+		fmt.Println(resp)
+	}
+}
