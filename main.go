@@ -106,12 +106,11 @@ func init() {
 		go func() {
 			// Get Default Security Group ID
 			DefaultSGID := awsapitools.GetInstanceJSONUserData("http://169.254.169.254/latest/user-data", "DefaultSG")
-
+			// Convert string to int
 			httpPort, _ := strconv.ParseInt(config.HTTPPort, 10, 0)
 			// Add nat healt check FW rules
-			awsapitools.ModifySecurityGroup(session, "icmp", config.OtherInstancePubIP+"/32", DefaultSGID, 8, 0)
+			awsapitools.ModifySecurityGroup(session, "icmp", config.OtherInstancePubIP+"/32", DefaultSGID, -1, -1)
 			awsapitools.ModifySecurityGroup(session, "tcp", config.OtherInstancePubIP+"/32", DefaultSGID, httpPort, httpPort)
-
 			// Add greIpsec FW rules
 			for _, peer := range config.PeerPubIPS {
 				awsapitools.ModifySecurityGroup(session, "50", peer+"/32", DefaultSGID, -1, -1)
