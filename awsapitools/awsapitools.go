@@ -233,6 +233,11 @@ func ModifySecurityGroup(session *ec2.EC2, protocol, cidrIP, sgGroupID string, f
 	var err error
 	defer errhandling.CatchPanic(&err, "ModifySecurityGroup")
 
+	// Ingore rules for localhost
+	if cidrIP == "172.0.0.1/32" {
+		return
+	}
+
 	params := &ec2.AuthorizeSecurityGroupIngressInput{
 		DryRun:  aws.Bool(false),
 		GroupId: aws.String(sgGroupID),
