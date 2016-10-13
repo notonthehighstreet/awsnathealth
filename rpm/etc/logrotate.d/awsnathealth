@@ -1,0 +1,7 @@
+/var/log/awsnathealth.log {
+    notifempty
+    missingok
+    postrotate
+        /bin/kill -USR1 `/usr/bin/pgrep awsnathealth` 2> /dev/null || true
+    endscript
+}
