@@ -38,6 +38,7 @@ type natConfig struct {
 	ManagedSecurityGroups      bool          `toml:"managedSecurityGroups"`
 	ManageRacoonBgpd           bool          `toml:"manageRacoonBgpd"`
 	StandAlone                 bool          `toml:"standAlone"`
+	AwsnathealthDisabled       bool          `toml:"awsnathealthDisabled"`
 	Debug                      bool          `toml:"debug"`
 }
 
@@ -138,6 +139,11 @@ func init() {
 }
 
 func main() {
+	//awsnathealth service enabled/disabled
+	if config.AwsnathealthDisabled {
+		logging.Info.Print("Awsnathealth is disabled in the config file. Exiting!!!")
+		os.Exit(0)
+	}
 	//Get myInstanceID
 	myInstanceID := awsapitools.MetadataInstanceID()
 
