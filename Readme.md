@@ -26,15 +26,39 @@ publicIPCheckInterval = 300
 routeTableCheckInterval = 300
 serviceCheckInterval = 300
 pingTimeout = 30
-myRoutingTables = [ "rtb-7d5d5e19", "rtb-1g73f07b" ]
-otherInstanceRoutingTables = [ "rtb-a31a98c7" ]
+myRoutingTables = [ 'rtb-7d5d5e19', 'rtb-1g73f07b' ]
+otherInstanceRoutingTables = [ 'rtb-a31a98c7' ]
 peerPubIPS = ['127.0.0.1', '127.0.0.1']
 logfile = "/var/log/awsnathealth.log"
 managedSecurityGroups = true
 manageRacoonBgpd = true
 standAlone = false
+awsnathealthDisabled = false
 debug = false
 ```
+
+# Config parameters
+**myInstancePubIP** - the nat instance elastic public ip.<br/>
+**otherInstancePubIP** - the pair nat instance elastic public ip.<br/>
+**httpport** - tcp port on which the http handeler is listening on. <br/>
+**vpcID** - aws vpc id where the nat box is located.<br/>
+**awsRegion** - aws region where the nat box is located.<br/>
+**sessionCreateInterval** - the interval in seconds how often is the aws api session created.<br/>
+**publicIPCheckInterval** - the interval in seconds how often is the elastic ip association checked.<br/>
+**routeTableCheckInterval** - the interval in seconds how often is the routeTable association checked.<br/>
+**serviceCheckInterval** - the interval in seconds how often is the service Racoon and Bgpd config is checked, it is used with **manageRacoonBgpd**.<br/>
+**pingTimeout** - the number of failed pings before the route table is being taken over from the other instance.<br/>
+**myRoutingTables** - the route tables associated with the nat instance.<br/>
+**otherInstanceRoutingTables** - the route tables associated with the other nat instance.<br/>
+**peerPubIPS** - the public addresses of the other vpn endpoints.<br/>
+**logfile** - log file path.<br/>
+**managedSecurityGroups** - if it set to true it'll create all the security rules to enable the IPSEC-GRE tunnel between the VPN peers and the natbox ping and http checks beetween the natbox pair.<br/>
+This option requires the default security group id which is passed with the UserData with cloud formation when the stack is created.<br/>
+**manageRacoonBgpd** - if it set to true it will managed the bgpd and racoon configs in case the natbox private ip changes.<br/>
+**standAlone** - if it set to true the it wont check the other natbox health.<br/>
+**awsnathealthDisabled** - if it set to true the awsnathealth app wont start up.<br/>
+**debug** - if it set to true it enables verbose logging.
+
 
 # Application work flow
 ![alt tag](workflow.png)
