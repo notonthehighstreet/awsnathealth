@@ -169,7 +169,7 @@ func main() {
 	go func() {
 		for {
 			if awsapitools.InstancePublicIP(session, myInstanceID) != config.MyInstancePubIP {
-				awsapitools.AssociateElacticIP(session, config.MyInstancePubIP, config.MyInstPubIPAllocationID, myInstanceID)
+				awsapitools.AssociateElacticIP(session, config.MyInstPubIPAllocationID, myInstanceID)
 				logging.Info.Print("Taking back my Elatic IP:", config.MyInstancePubIP)
 			}
 			time.Sleep(config.PICInterval * time.Second)
