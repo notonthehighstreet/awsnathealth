@@ -157,12 +157,13 @@ func MetadataInstanceID() string {
 }
 
 // AssociateElacticIP function associate Elatic IP to an instance.
-func AssociateElacticIP(session *ec2.EC2, elaticIP, instanceID string) {
+func AssociateElacticIP(session *ec2.EC2, elaticIP, elaticIPAllocationID, instanceID string) {
 	//Catch and log panic events
 	var err error
 	defer errhandling.CatchPanic(&err, "AssociateElacticIP")
 
 	params := &ec2.AssociateAddressInput{
+		AllocationId:       aws.String(elaticIPAllocationID),
 		AllowReassociation: aws.Bool(true),
 		DryRun:             aws.Bool(false),
 		InstanceId:         aws.String(instanceID),

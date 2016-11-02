@@ -22,6 +22,7 @@ import (
 
 type natConfig struct {
 	MyInstancePubIP            string        `toml:"myInstancePubIP"`
+	MyInstPubIPAllocationID    string        `toml:"myInstPubIPAllocationID"`
 	OtherInstancePubIP         string        `toml:"otherInstancePubIP"`
 	HTTPPort                   string        `toml:"httpport"`
 	VpcID                      string        `toml:"vpcID"`
@@ -168,7 +169,7 @@ func main() {
 	go func() {
 		for {
 			if awsapitools.InstancePublicIP(session, myInstanceID) != config.MyInstancePubIP {
-				awsapitools.AssociateElacticIP(session, config.MyInstancePubIP, myInstanceID)
+				awsapitools.AssociateElacticIP(session, config.MyInstancePubIP, config.MyInstPubIPAllocationID, myInstanceID)
 				logging.Info.Print("Taking back my Elatic IP:", config.MyInstancePubIP)
 			}
 			time.Sleep(config.PICInterval * time.Second)
