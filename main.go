@@ -27,6 +27,7 @@ type natConfig struct {
 	HTTPPort                   string        `toml:"httpport"`
 	VpcID                      string        `toml:"vpcID"`
 	AwsRegion                  string        `toml:"awsRegion"`
+	Logfile                    string        `toml:"logfile"`
 	SCInterval                 time.Duration `toml:"sessionCreateInterval"`
 	PICInterval                time.Duration `toml:"publicIPCheckInterval"`
 	RTCInterval                time.Duration `toml:"routeTableCheckInterval"`
@@ -35,10 +36,10 @@ type natConfig struct {
 	MyRoutingTables            []string      `toml:"myRoutingTables"`
 	OtherInstanceRoutingTables []string      `toml:"otherInstanceRoutingTables"`
 	PeerPubIPS                 []string      `toml:"peerPubIPS"`
-	Logfile                    string        `toml:"logfile"`
 	ManagedSecurityGroups      bool          `toml:"managedSecurityGroups"`
 	ManageRacoonBgpd           bool          `toml:"manageRacoonBgpd"`
 	StandAlone                 bool          `toml:"standAlone"`
+	TakeOver                   bool          `toml:"takeOwer"`
 	AwsnathealthDisabled       bool          `toml:"awsnathealthDisabled"`
 	Debug                      bool          `toml:"debug"`
 }
@@ -176,7 +177,29 @@ func main() {
 		}
 	}()
 
-	if !config.StandAlone {
+	// Take ower mode
+	if config.TakeOver {
+		go func() {
+			for {
+				logging.Warning.Println("Take over mode enabled!")
+				otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
+				RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+				bothrtable := append(config.MyRoutingTables, config.OtherInstanceRoutingTables...)
+				//Check who owns the routes if not me take them.
+				for routeTableID, instanceID := range RTsInIDs {
+					if othertools.StringInSlice(routeTableID, bothrtable) && instanceID != myInstanceID {
+						logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
+						awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
+					} else {
+						logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
+					}
+				}
+				time.Sleep(config.RTCInterval * time.Second)
+			}
+		}()
+	}
+
+	if !config.StandAlone || !config.TakeOver {
 		//Check the other nat insance
 		notPingCount := 0
 		for ping := range pingschannel {
