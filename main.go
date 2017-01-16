@@ -39,7 +39,7 @@ type natConfig struct {
 	ManagedSecurityGroups      bool          `toml:"managedSecurityGroups"`
 	ManageRacoonBgpd           bool          `toml:"manageRacoonBgpd"`
 	StandAlone                 bool          `toml:"standAlone"`
-	TakeOver                   bool          `toml:"takeOwer"`
+	TakeOver                   bool          `toml:"takeOver"`
 	AwsnathealthDisabled       bool          `toml:"awsnathealthDisabled"`
 	Debug                      bool          `toml:"debug"`
 }
@@ -199,7 +199,7 @@ func main() {
 		}()
 	}
 
-	if !config.StandAlone || !config.TakeOver {
+	if !config.StandAlone && !config.TakeOver {
 		//Check the other nat insance
 		notPingCount := 0
 		for ping := range pingschannel {
