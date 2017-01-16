@@ -179,24 +179,22 @@ func main() {
 
 	// Take ower mode
 	if config.TakeOver {
-		go func() {
-			for {
-				logging.Warning.Println("Take over mode enabled!")
-				otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
-				RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
-				bothrtable := append(config.MyRoutingTables, config.OtherInstanceRoutingTables...)
-				//Check who owns the routes if not me take them.
-				for routeTableID, instanceID := range RTsInIDs {
-					if othertools.StringInSlice(routeTableID, bothrtable) && instanceID != myInstanceID {
-						logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
-						awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
-					} else {
-						logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
-					}
+		for {
+			logging.Warning.Println("Take over mode enabled!")
+			otherInstanceID := awsapitools.InstanceIDbyPublicIP(session, config.OtherInstancePubIP)
+			RTsInIDs := awsapitools.DescribeRouteTableIDNatInstanceID(session, config.VpcID)
+			bothrtable := append(config.MyRoutingTables, config.OtherInstanceRoutingTables...)
+			//Check who owns the routes if not me take them.
+			for routeTableID, instanceID := range RTsInIDs {
+				if othertools.StringInSlice(routeTableID, bothrtable) && instanceID != myInstanceID {
+					logging.Info.Println("I've taken over Nat instanceID:", otherInstanceID, "instanceIP:", config.OtherInstancePubIP, "Route table:", routeTableID)
+					awsapitools.ReplaceRoute(session, routeTableID, myInstanceID)
+				} else {
+					logging.Error.Println("Route table:", routeTableID, "does not belong to nat instance:", otherInstanceID)
 				}
-				time.Sleep(config.RTCInterval * time.Second)
 			}
-		}()
+			time.Sleep(config.RTCInterval * time.Second)
+		}
 	}
 
 	if !config.StandAlone && !config.TakeOver {
