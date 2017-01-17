@@ -177,7 +177,7 @@ func main() {
 		}
 	}()
 
-	// Take ower mode
+	// Take over mode
 	if config.TakeOver {
 		for {
 			logging.Warning.Println("Take over mode enabled!")
